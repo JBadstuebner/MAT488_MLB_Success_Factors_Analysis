@@ -1,0 +1,239 @@
+---
+title: "Project 4"
+author: "Jordan Badstuebner"
+date: "May 2020"
+output: 
+  pdf_document:
+    fig_caption: yes
+---
+
+```{r echo = FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      message = FALSE,
+                      warning = FALSE,
+                      fig.width = 6,
+                      fig.asp = .628
+                      )
+```
+
+
+```{r include=FALSE}
+library(knitr)
+library(kableExtra)
+library(ggplot2)
+library(tinytex)
+library(DescTools)
+library(car)
+```
+
+
+```{r include=FALSE}
+df = read.csv("C:/Users/jorda/Desktop/MAT_488/Reports/Project4/baseball.csv")
+df
+```
+```{r include=FALSE}
+a = lm(df$W ~ df$OBP + df$SLG)
+summary(a)
+#reject H_O that OBP is not significant
+#fail to reject H_O that SLG is not significant
+```
+
+\section{Introduction}
+Baseball is a game dear to my heart.  It is a game of many variables, many of which can be measured, recorded, and analyzed and which have been for over a century.  For the purpose of this project, being the icing to my "curiosity as a fan of the game" cake, I seek to use this data, which contains some simple baseball statistics, to explore the possibility any of those basic statistics correlate to winning baseball games, as well as the possibility of producing a reasonable prediction model.
+
+
+\section{Summary of Data}
+The data set used for this experiment is easily accessible via the internet and titled "baseball.csv"  A preview and summary of the data set are shown below:
+```{r include = FALSE}
+df_m = df[c("Team", "Year","RS","RA","W","OBP","SLG","BA","OOBP","OSLG")]
+summary(df)
+```
+
+```{r fig.pos="H"}
+kable(df[1:6,],
+      "latex",
+      caption = "Preview of Baseball.csv", 
+      booktabs = T) %>%
+  kable_styling(latex_options = c("HOLD_positon","striped", "scale_down"))
+```
+
+
+```{r}
+knitr::kable(summary(df_m),
+      "latex",
+      caption = "Summary of Baseball.csv", 
+      booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_positon"))
+```
+As can be seen in \textbf{Table 1}, rows comprise all teams in Major League Baseball (MLB) and columns contain some common baseball stats.  In \textbf{Table 2}, we can see that the data covers years 1962-2012.  For the purposes of this analysis, we will focus on wins (W) as the dependent variable, and independent variables: runs scored (RS), runs agains (RA), onbase percentage (OB), slugging (SLG), batting average (BA), opposing OBP (OOBP), and opposing SLG (OSLG).  
+
+\section{The Question}
+The question is simple - What are the factors that can be shown to correlate to winning? 
+
+\section{Data Exploration}
+```{r include=FALSE}
+sum(df$RS)
+sum(df$RA)
+```
+
+  Before looking at any models, I ran the sum  of (RS) against the sum of (RA).  The sums of these columns were indeed equivalent, which is a good sign the data was input correctly into these columns.  
+  
+The second step was was to check for outliers.  I started with (W).  The box plot titled \textbf{Outliers of Response Variable} is shown below and \textbf{Table 3} provides a great slice of the teams and numbers corresponding to those teams' respective outlier season.  There exist only 4 outlies out of 880,981 observations.  The histogram below titled \textbf{Distribiution of Response Variable} shows a normal distribution around the mean of 80.9.
+
+```{r}
+bp_w = boxplot(df$W, 
+               main= "Outliers of Response Variable", 
+               ylab="Total Wins/Season"
+               )
+```
+
+```{r}
+hist(df$W,
+     main = "Distribiution of Response Variable",
+     xlab = "Wins")
+```
+
+
+```{r include=FALSE}
+# Now you can assign the outlier values into a vector
+outliers_W = boxplot(df$W, plot=FALSE)$out
+# Check the results
+outliers_W
+```
+
+```{r}
+# First you need find in which rows the outliers are
+knitr::kable(df[which(df$W %in% outliers_W),],
+      "latex",
+      caption = "(W) Outliers slice", 
+      booktabs = T) %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_positon"))
+```
+
+\section{The Model}
+
+As a position player (not a pitcher), my initial thoughts went back to what any postion player has heard from his coach since little league - "hits hits hits!"  My initial guess was that batting average will play a huge roll in winning.  That linear model returned a p-value of 2e-16, showing that batting average is definitely significant, but the $R^2$ of this model was an abismal 0.1664. 
+```{r include=FALSE}
+b = lm(df$W ~ df$BA)
+summary(b)
+```
+
+After giving this some follow up thought, I realized (OBP) is a smarter replacement for (BA) and more likely to possess a stronger correlation to winning, given that (BA) is factored into (OBP).  Running another linear model with (OBP) as a the independent variable, the return was, again, a significant p-value with a very low $R^2$ and, of course, this makes sense.  Getting on base is one thing, but runs must be scored to win.
+
+```{r include=FALSE}
+c = lm(df$W ~ df$OBP * df$SLG)
+summary(c)
+```
+
+Having now found that (OBP) possesses a similar p-val and higher $R^2$ than (BA), the next step was to use a multiple regression and factor (OBP) with (SLG).  Surely, (OBP) and (SLG) must correlate to winning.  Couriously, (SLG) returned a p-val of 0.182, showing it wasn't significant to this model at all.  So, (OBP) is signficant to winning and has a [wicked] weak correlation to winning, but why?  Well, this actually makes a lot of sense.
+
+```{r include=FALSE}
+d = lm(df$W ~ df$OBP + df$BA)
+summary(d)
+```
+
+```{r include=FALSE}
+d_1 = lm(df$W ~ df$OBP + df$SLG)
+summary(d_1)
+```
+
+What is the reward for high (OBP) and (SLG)?  The reward is (RS).  Sure enough, after using (RS) as the depencant variable and (OBP)+(SLG) as independant variables, we are now cooking with fire.  Both (OBP) and (SLG) returned p-values of 2e-16 and the model returned an $R^2$ of 0.9247.  
+
+```{r include=FALSE}
+d_2 = lm(df$RS ~ df$OBP + df$SLG)
+summary(d_2)
+```
+
+```{r include=FALSE}
+e = lm(df$W ~ df$RS)
+summary(e)
+```
+\newpage
+Returning to (W) as the response variable, I ran the model with (RS) which returned a highly significant p-value of 2e-16 but another heineous $R^2$ of .2613.  So (OBP)+(SLG) is a strong correlation to (RS), which is highly signicant to (W), but has a weak correlation to (W).  And then it \textit{hit} me:
+
+```{r fig.cap="Linear Model"}
+f = lm(df$W ~ df$RS + df$RA)
+summary(f)
+
+#parameter estimes are the coefficients (slope) of each variable
+```
+
+How does one win a baseball game, or any scored match for that matter?  Score a lot of points and don't give up a lot of points, of course.  It appears that defense and pitching actually matter too!  As shown above, $R^2$ returns at 0.8794, giving the model a respectible proportion of variability explained by the regression (it's a decent model).  (RS) and (RA) show highly significant p-values of 2e-16 at >99.999% confidence.  (RS) returns a slope of 0.104493 telling us that for every run scored, wins increase by ~$.104$.  (RA) returns a negative slope (gratefully) of -0.104600 telling us that for every run scored against a team, wins decrease by ~$.104$.  I found it interesting, and worth noting, that these slopes are nearly identical.
+```{r include=FALSE}
+g = lm(df$RS ~ df$SLG + df$BA)
+summary(g)
+```
+
+```{r include=FALSE}
+h = lm(df$RS ~ df$SLG + df$OBP)
+summary(h)
+```
+
+\section{Residual Analysis}
+```{r include=FALSE}
+#Evaluate Normality
+hist(residuals(f))
+```
+
+As indicated in the plot below, the predictions of the model conform to the diagonal normality line - a good sign we are making valid inferences from our regression.
+
+```{r}
+plot(df$W, predict(f), main="Predictions vs Actual", ylab="Predicted Wins", xlab="Actual Wins", col="forestgreen") 
+```
+
+I proceeded to standarize the residuals to give us a better understanding of them.  Taking a closer look into the normal q-q, histogram, and desity plots below, our residuals appear to be normally distributed.
+```{r}
+#Evaluate Normality
+plot(f, which=c(2), col="darkseagreen")
+```
+
+
+
+```{r message=FALSE, warning=FALSE}
+#Evaluate Normality
+f_h = hist(rstandard(f),
+           breaks=25,
+           col="orange", 
+           main="Histogram of Residuals",
+           xlab = "Residuals (Standardized)"
+           )
+f_h
+
+#I have standardized the residuals to give a better understanding.
+```
+
+
+```{r}
+#Evaluate Normality
+f_dp = density(rstandard(f),)
+plot(f_dp, main='Residual KDE Plot',col="orange", xlab='Residual value')
+```
+
+In order to evalue the homoscedasticity of the residuals, I used the graphs below.  In both graphs, it is reasonable to determine a completely random equal distribution of points throughout the range of $x$ along what is very close to a flat red line.  This indicates there is almost no heteroscedastity.
+
+```{r}
+# Evaluate homoscedasticity
+plot(f, which=c(1,3), col="darkseagreen")
+```
+```{r include=FALSE}
+# Evaluate homoscedasticity
+# non-constant error variance test
+ncvTest(f)
+```
+Since our residuals are nomrally distributed and homoscedastic, we need not evaluate linearity.  Concluding our residual analyis, we can be confident that we are making valid inferences from our regression.
+
+\section{Conclusion}
+```{r include=FALSE}
+i = lm(df$RA ~ df$OOBP + df$SLG)
+summary(i)
+```
+It may seem intuitive that the key to winning is to maintain the highest possible number of runs scored in tandem with allowing the lowest possible number of runs to be scored against you.  With this model, we are able to go beyond intuition, state that (RS) and (RA) is strongly correlated to winning in baseball, and even predict wins based on a team's (RS) and (RA) ratio at any point in a season.  After analyzing the data in deeper depth, there were potentially strong correlations of:
+  \begin{enumerate}
+     \item[](OBP) and (SLG) to (RS)   |  p-val<.001, $R^2$>.9
+     \item[](OOBP) and (SLG) to (RA)  |  p-val<.001, $R^2$>.9
+  \end{enumerate}
+These results are, again, intuitive and it would be safe to bet that they can be determined as correlations following a repeat process of this analysis.
+
+There are a mindblowing amount of statistics recorded in the game of baseball.  As techology continues to improve, so will the the invention of new and exciting sports statistics.  This data set was limited in that it only included some of the most basic statistics in the game.  I would have loved to have taken a look at things like fielding percentage, atompheric pressure and tempurature, or designated list times as a few examples of additional factors.  I am curious to see what factors might show a stronger correlation once added into our model.  
+
+I am now a coach.  This summer, while stressing to the hitters to get on base, then stressing to the pitchers to throw strikes, it will not be because "I say so", but, keeping the findings of this lab in mind, it will now be because I have a pretty good idea that they are part of a strong correlation.
